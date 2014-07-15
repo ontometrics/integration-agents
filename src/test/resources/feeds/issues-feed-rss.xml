@@ -1,4 +1,4 @@
-<rss version="2.0">
+<?xml version='1.0' encoding='utf-8'?>
     <channel>
         <title>YouTrack</title>
         <link>http://ontometrics.com:8085/_rss/issues</link>
@@ -562,4 +562,3 @@ il.com) </td> </tr> <tr> <th>Created</th> <td>Jun 17, 2014 2:41:30 AM</td> </tr>
             <pubDate>Mon, 14 Jul 2014 00:28:56 UT</pubDate>
         </item>
     </channel>
-</rss>
