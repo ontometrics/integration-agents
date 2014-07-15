@@ -3,21 +3,18 @@ package com.ontometrics.integrations.sources;
 import com.ontometrics.test.util.TestUtil;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.theories.suppliers.TestedOn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.xml.stream.*;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.net.URL;
 
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
 
 public class SourceEventMapperTest {
 
@@ -43,7 +40,6 @@ public class SourceEventMapperTest {
         InputStream inputStream = sourceUrl.openStream();
         XMLInputFactory inputFactory = XMLInputFactory.newInstance();
         XMLStreamReader reader = inputFactory.createXMLStreamReader(inputStream);
-        XMLEventReader eventReader = inputFactory.createXMLEventReader(inputStream);
 
         while (reader.hasNext()) {
             int eventType = reader.next();
@@ -63,11 +59,8 @@ public class SourceEventMapperTest {
 
     @Test
     public void testThatWeCanReadAsEventStream() throws IOException, XMLStreamException {
-        int startElementCount = 0;
-        int endElementCount = 0;
         InputStream inputStream = sourceUrl.openStream();
         XMLInputFactory inputFactory = XMLInputFactory.newInstance();
-        XMLStreamReader reader = inputFactory.createXMLStreamReader(inputStream);
         XMLEventReader eventReader = inputFactory.createXMLEventReader(inputStream);
 
         while (eventReader.hasNext()) {
