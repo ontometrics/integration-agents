@@ -4,7 +4,6 @@ import com.ontometrics.test.util.TestUtil;
 import com.ontometrics.util.DateBuilder;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.theories.suppliers.TestedOn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,9 +16,10 @@ import java.net.URL;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
-import static java.util.Calendar.JANUARY;
 import static java.util.Calendar.JULY;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
@@ -78,7 +78,7 @@ public class SourceEventMapperTest {
 
     @Test
     public void testCanParseDate() {
-        Date date = new DateBuilder().day(14).month(JULY).year(2014).hour(16).minutes(41).seconds(03).build();
+        Date date = new DateBuilder().day(14).month(JULY).year(2014).hour(16).minutes(41).seconds(3).build();
         DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zz");
 
         log.info("date: {}", df.format(date));
@@ -103,6 +103,13 @@ public class SourceEventMapperTest {
             }
         }
 
+        ProcessEvent firstEvent = events.get(0);
+
+        assertThat(firstEvent.getTitle(), is("ASOC-28: User searches for Users by name"));
+        assertThat(firstEvent.getLink(), is("http://ontometrics.com:8085/issue/ASOC-28"));
+        assertThat(firstEvent.getDescription(), is("<table> <tr> <th>Reporter</th> <td> <img src=\"http://ontometrics.com:8085/_classpath/smartui/img/youPicture.gif\" width=\"56\" height=\"59\" alt=\"Tim Fulmer (timfulmer)\" title=\"Tim Fulmer (timfulmer)\"/> Tim Fulmer (timfulmer) </td> </tr> <tr> <th>Created</th> <td>Apr 15, 2014 9:05:53 AM</td> </tr> <tr> <th>Updated</th> <td>Jul 14, 2014 9:41:03 AM</td> </tr> <tr> <th>Priority</th> <td>Normal</td> </tr> <tr> <th>Type</th> <td>Feature</td> </tr> <tr> <th>State</th> <td>Open</td> </tr> <tr> <th>Assignee</th> <td>Noura Hassan (noura)</td> </tr> <tr> <th>Subsystem</th> <td>No subsystem</td> </tr> <tr> <th>Fix versions</th> <td>1.0.0</td> </tr> <tr> <th>Affected versions</th> <td>Unknown</td> </tr> <tr> <th>Fixed in build</th> <td>Next Build</td> </tr> </table> <div class=\"wiki text\">User can search for other Users by name, first screenshot. Users can follow in the search results. Tapping on a search result shows the selected User&#39;s profile page.<br/><br/>API service call:<br/><br/><a href=\"http://devvixletapi-env.elasticbeanstalk.com/#!/search/_get_0\">http://devvixletapi-env.elasticbeanstalk.com/#!/search/_get_0</a></div>"));
+
+        log.info("size of events: {}", events.size());
         assertThat(events.size(), is(not(0)));
     }
 
@@ -112,7 +119,7 @@ public class SourceEventMapperTest {
         DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss");
 
         try {
-            XMLEvent nextEvent = eventReader.nextEvent();
+            eventReader.nextEvent();
             StartElement titleTag = eventReader.nextEvent().asStartElement(); // start title tag
             if ("title".equals(titleTag.getName().getLocalPart())){
                 currentTitle = eventReader.getElementText();
@@ -120,13 +127,11 @@ public class SourceEventMapperTest {
                 eventReader.nextEvent();
                 currentLink = eventReader.getElementText();
                 eventReader.nextEvent(); eventReader.nextEvent();
-                currentDescription = eventReader.getElementText();
+                currentDescription = eventReader.getElementText().replace("\n", "").trim();
                 eventReader.nextEvent(); eventReader.nextEvent();
                 currentPublishDate = df.parse(eventReader.getElementText());
             }
-        } catch (XMLStreamException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
+        } catch (XMLStreamException | ParseException e) {
             e.printStackTrace();
         }
         ProcessEvent event = new ProcessEvent.Builder().title(currentTitle).description(currentDescription).link(currentLink).published(currentPublishDate).build();
