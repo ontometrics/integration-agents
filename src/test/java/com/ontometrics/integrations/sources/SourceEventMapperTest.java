@@ -7,16 +7,15 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.stream.*;
-import javax.xml.stream.events.StartElement;
-import javax.xml.stream.events.XMLEvent;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -29,7 +28,6 @@ public class SourceEventMapperTest {
     private static final Logger log = LoggerFactory.getLogger(SourceEventMapperTest.class);
 
     private URL sourceUrl;
-    private XMLEventReader eventReader;
 
     @Before
     public void setup(){
@@ -86,23 +84,10 @@ public class SourceEventMapperTest {
 
     @Test
     public void testThatWeCanExtractYouTrackEvent() throws IOException, XMLStreamException {
-        InputStream inputStream = sourceUrl.openStream();
-        XMLInputFactory inputFactory = XMLInputFactory.newInstance();
-        eventReader = inputFactory.createXMLEventReader(inputStream);
-
-        List<ProcessEvent> events = new ArrayList<>();
-        while (eventReader.hasNext()) {
-            XMLEvent nextEvent = eventReader.nextEvent();
-            switch (nextEvent.getEventType()){
-                case XMLStreamConstants.START_ELEMENT:
-                    StartElement startElement = nextEvent.asStartElement();
-                    String elementName = startElement.getName().getLocalPart();
-                    if (elementName.equals("item")){
-                        events.add(extractEventFromStream());
-                    }
-            }
-        }
-
+        
+        SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
+        List<ProcessEvent> events = sourceEventMapper.getLatestEvents();
+        
         ProcessEvent firstEvent = events.get(0);
 
         assertThat(firstEvent.getTitle(), is("ASOC-28: User searches for Users by name"));
@@ -113,31 +98,14 @@ public class SourceEventMapperTest {
         assertThat(events.size(), is(not(0)));
     }
 
-    private ProcessEvent extractEventFromStream() {
-        String currentTitle = "", currentLink = "", currentDescription = "";
-        Date currentPublishDate = null;
-        DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss");
+    @Test
+    public void testThatLastSeenEventTracked(){
+        SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
+        List<ProcessEvent> events = sourceEventMapper.getLatestEvents();
 
-        try {
-            eventReader.nextEvent();
-            StartElement titleTag = eventReader.nextEvent().asStartElement(); // start title tag
-            if ("title".equals(titleTag.getName().getLocalPart())){
-                currentTitle = eventReader.getElementText();
-                eventReader.nextEvent(); // eat end tag
-                eventReader.nextEvent();
-                currentLink = eventReader.getElementText();
-                eventReader.nextEvent(); eventReader.nextEvent();
-                currentDescription = eventReader.getElementText().replace("\n", "").trim();
-                eventReader.nextEvent(); eventReader.nextEvent();
-                currentPublishDate = df.parse(eventReader.getElementText());
-            }
-        } catch (XMLStreamException | ParseException e) {
-            e.printStackTrace();
-        }
-        ProcessEvent event = new ProcessEvent.Builder().title(currentTitle).description(currentDescription).link(currentLink).published(currentPublishDate).build();
-        log.info("{}", event);
-        return event;
+        assertThat(sourceEventMapper.getLastEvent(), is(events.get(events.size()-1)));
     }
+
 
 
 }
