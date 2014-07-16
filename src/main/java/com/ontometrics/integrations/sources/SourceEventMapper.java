@@ -36,6 +36,11 @@ public class SourceEventMapper {
         this.url = url;
     }
 
+    /**
+     * Once we have this open, we should make sure that we are not resending events we have already seen.
+     *
+     * @return the last event that was returned to the user of this class
+     */
     public List<ProcessEvent> getLatestEvents(){
         List<ProcessEvent> events = new ArrayList<>();
         try {
@@ -61,6 +66,11 @@ public class SourceEventMapper {
         return events;
     }
 
+    /**
+     * Given that the stream should automatically do this, this might not be needed.
+     *
+     * @return the last event returned the last time #getLatestEvents() was called.
+     */
     public ProcessEvent getLastEvent() {
         return lastEvent;
     }
@@ -86,7 +96,12 @@ public class SourceEventMapper {
         } catch (XMLStreamException | ParseException e) {
             e.printStackTrace();
         }
-        ProcessEvent event = new ProcessEvent.Builder().title(currentTitle).description(currentDescription).link(currentLink).published(currentPublishDate).build();
+        ProcessEvent event = new ProcessEvent.Builder()
+                .title(currentTitle)
+                .description(currentDescription)
+                .link(currentLink)
+                .published(currentPublishDate)
+                .build();
         log.info("{}", event);
         return event;
     }
