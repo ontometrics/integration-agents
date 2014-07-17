@@ -16,8 +16,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import static java.util.Calendar.JULY;
 import static org.hamcrest.CoreMatchers.*;
@@ -106,6 +105,53 @@ public class SourceEventMapperTest {
         assertThat(sourceEventMapper.getLastEvent(), is(events.get(events.size()-1)));
     }
 
+    @Test
+    public void testThatMessagesAreMappedToChannels(){
+
+        SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
+        List<ProcessEvent> events = sourceEventMapper.getLatestEvents();
+
+        ChannelMapper channelMapper = new ChannelMapper();
+
+        for (ProcessEvent event : events){
+            String channel = channelMapper.getChannel(event);
+            log.info("channel: {}", channel);
+            postEventToChannel(event, channel);
+        }
+
+    }
+
+    @Test
+    public void testThatEventsStreamProcessed(){
+
+        SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
+        List<ProcessEvent> events = sourceEventMapper.getLatestEvents();
+
+        ChannelMapper channelMapper = new ChannelMapper();
+
+        events.stream().forEach(e -> postEventToChannel(e, channelMapper.getChannel(e)));
+
+    }
+
+    private void postEventToChannel(ProcessEvent event, String channel) {
+        log.info("posting: {} to channel: {}", event.getTitle(), channel);
+    }
 
 
+    private class ChannelMapper {
+
+        String defaultChannel = "process";
+        Map<String, String> channelMappings = new HashMap<>();
+
+        private ChannelMapper() {
+            channelMappings.put("ASOC", "vixlet");
+            channelMappings.put("DMAN", "dminder");
+        }
+
+        public String getChannel(ProcessEvent event){
+            Optional<String> channelKey = channelMappings.keySet().stream().filter(k -> event.getTitle().contains(k)).findFirst();
+            log.info("channelKey: {} isPresent: {}", channelKey, channelKey.isPresent());
+            return channelKey.isPresent() ? channelMappings.get(channelKey.get()) : defaultChannel;
+        }
+    }
 }
