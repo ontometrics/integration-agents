@@ -106,28 +106,16 @@ public class SourceEventMapperTest {
     }
 
     @Test
-    public void testThatMessagesAreMappedToChannels(){
-
-        SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
-        List<ProcessEvent> events = sourceEventMapper.getLatestEvents();
-
-        ChannelMapper channelMapper = new ChannelMapper();
-
-        for (ProcessEvent event : events){
-            String channel = channelMapper.getChannel(event);
-            log.info("channel: {}", channel);
-            postEventToChannel(event, channel);
-        }
-
-    }
-
-    @Test
     public void testThatEventsStreamProcessed(){
 
         SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
         List<ProcessEvent> events = sourceEventMapper.getLatestEvents();
 
-        ChannelMapper channelMapper = new ChannelMapper();
+        ChannelMapper channelMapper = new ChannelMapper.Builder()
+                .defaultChannel("process")
+                .addMapping("ASOC", "vixlet")
+                .addMapping("DMAN", "dminder")
+                .build();
 
         events.stream().forEach(e -> postEventToChannel(e, channelMapper.getChannel(e)));
 
@@ -137,21 +125,4 @@ public class SourceEventMapperTest {
         log.info("posting: {} to channel: {}", event.getTitle(), channel);
     }
 
-
-    private class ChannelMapper {
-
-        String defaultChannel = "process";
-        Map<String, String> channelMappings = new HashMap<>();
-
-        private ChannelMapper() {
-            channelMappings.put("ASOC", "vixlet");
-            channelMappings.put("DMAN", "dminder");
-        }
-
-        public String getChannel(ProcessEvent event){
-            Optional<String> channelKey = channelMappings.keySet().stream().filter(k -> event.getTitle().contains(k)).findFirst();
-            log.info("channelKey: {} isPresent: {}", channelKey, channelKey.isPresent());
-            return channelKey.isPresent() ? channelMappings.get(channelKey.get()) : defaultChannel;
-        }
-    }
 }
