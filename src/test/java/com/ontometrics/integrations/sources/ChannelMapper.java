@@ -9,6 +9,7 @@ import java.util.Optional;
 
 /**
  * Created by rob on 7/17/14.
+ * Copyright (c) ontometrics, 2014 All Rights Reserved
  */
 public class ChannelMapper {
 
