@@ -128,12 +128,32 @@ public class SourceEventMapperTest {
     }
 
     @Test
-    public void testThatChannelCanBePostedTo(){
+    public void testThatWeCanGetSlackUserList(){
         String token = "xoxp-2427064028-2427064030-2467602952-3d5dc6";
 
         Client client = ClientBuilder.newClient();
         String slackUrl = "https://slack.com/api/users.list?token=" + token;
         WebTarget slackApi = client.target(slackUrl);
+
+        Invocation.Builder invocationBuilder = slackApi.request(MediaType.APPLICATION_JSON);
+        Response response = invocationBuilder.get();
+
+        log.info("response code: {} response: {}", response.getStatus(), response.readEntity(String.class));
+
+    }
+
+    @Test
+    public void testThatChannelCanBePostedTo(){
+        String token = "xoxp-2427064028-2427064030-2467602952-3d5dc6";
+
+        Client client = ClientBuilder.newClient();
+        String slackUrl = "https://slack.com/api/";
+        String channelPostPath = "chat.postMessage";
+
+        WebTarget slackApi = client.target(slackUrl).path(channelPostPath)
+                .queryParam("token", token)
+                .queryParam("text", "hi there from unit test...")
+                .queryParam("channel", "#process");
 
         Invocation.Builder invocationBuilder = slackApi.request(MediaType.APPLICATION_JSON);
         Response response = invocationBuilder.get();
