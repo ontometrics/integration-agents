@@ -7,6 +7,12 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -118,6 +124,21 @@ public class SourceEventMapperTest {
                 .build();
 
         events.stream().forEach(e -> postEventToChannel(e, channelMapper.getChannel(e)));
+
+    }
+
+    @Test
+    public void testThatChannelCanBePostedTo(){
+        String token = "xoxp-2427064028-2427064030-2467602952-3d5dc6";
+
+        Client client = ClientBuilder.newClient();
+        String slackUrl = "https://slack.com/api/users.list?token=" + token;
+        WebTarget slackApi = client.target(slackUrl);
+
+        Invocation.Builder invocationBuilder = slackApi.request(MediaType.APPLICATION_JSON);
+        Response response = invocationBuilder.get();
+
+        log.info("response code: {} response: {}", response.getStatus(), response.readEntity(String.class));
 
     }
 
