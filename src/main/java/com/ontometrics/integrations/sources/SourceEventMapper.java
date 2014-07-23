@@ -19,6 +19,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created by rob on 7/11/14.
@@ -28,6 +29,7 @@ public class SourceEventMapper {
 
     private Logger log = LoggerFactory.getLogger(SourceEventMapper.class);
     private URL url;
+    private URL editsUrl;
     private XMLEventReader eventReader;
 
     private ProcessEvent lastEvent;
@@ -64,6 +66,43 @@ public class SourceEventMapper {
         }
         lastEvent = events.get(events.size()-1);
         return events;
+    }
+
+    public List<EditSet> getLatestChanges(){
+        List<ProcessEvent> latestEvents = getLatestEvents();
+        return latestEvents.stream().map(e -> getChanges(e)).collect(Collectors.toList());
+    }
+
+    private EditSet getChanges(ProcessEvent e) {
+        List<ProcessEvent> edits = new ArrayList<>();
+        try {
+            InputStream inputStream = editsUrl.openStream();
+            XMLInputFactory inputFactory = XMLInputFactory.newInstance();
+            XMLEventReader reader = inputFactory.createXMLEventReader(inputStream);
+            while (reader.hasNext()){
+                XMLEvent nextEvent = reader.nextEvent();
+                switch (nextEvent.getEventType()){
+                    case XMLStreamConstants.START_ELEMENT:
+                        StartElement startElement = nextEvent.asStartElement();
+                        String elementName = startElement.getName().getLocalPart();
+                        if (elementName.equals("change")){
+                            StartElement fieldTag = reader.nextEvent().asStartElement();
+                            //String fieldName = fieldTag.getAttributeByName("name").getValue();
+
+
+
+
+
+
+                        }
+                }
+            }
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        } catch (XMLStreamException e1) {
+            e1.printStackTrace();
+        }
+        return new EditSet.Builder().changedOn(new Date()).editor("Bozo").change(new ProcessEventChange.Builder().field("assignee").priorValue("Noura").currentValue("Rob").build()).build();
     }
 
     /**
@@ -106,6 +145,7 @@ public class SourceEventMapper {
         return event;
     }
 
-
-
+    public void setEditsUrl(URL editsUrl) {
+        this.editsUrl = editsUrl;
+    }
 }

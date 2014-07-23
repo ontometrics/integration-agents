@@ -13,10 +13,11 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.xml.stream.XMLEventReader;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
+import javax.xml.namespace.QName;
+import javax.xml.stream.*;
+import javax.xml.stream.events.EndElement;
+import javax.xml.stream.events.StartElement;
+import javax.xml.stream.events.XMLEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -33,10 +34,12 @@ public class SourceEventMapperTest {
     private static final Logger log = LoggerFactory.getLogger(SourceEventMapperTest.class);
 
     private URL sourceUrl;
+    private URL editsUrl;
 
     @Before
     public void setup(){
         sourceUrl = TestUtil.getFileAsURL("/feeds/issues-feed-rss.xml");
+        editsUrl = TestUtil.getFileAsURL("/feeds/issue-changes.xml");
     }
 
     @Test
@@ -159,6 +162,75 @@ public class SourceEventMapperTest {
         Response response = invocationBuilder.get();
 
         log.info("response code: {} response: {}", response.getStatus(), response.readEntity(String.class));
+
+    }
+
+    @Test
+    public void testThatWeCanGetMostRecentChanges(){
+        SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
+        List<EditSet> recentChanges = sourceEventMapper.getLatestChanges();
+
+        log.info("recent changes: {}", recentChanges);
+    }
+
+    @Test
+    public void testThatWeCanGetChanges(){
+        List<ProcessEvent> edits = new ArrayList<>();
+        try {
+            InputStream inputStream = editsUrl.openStream();
+            XMLInputFactory inputFactory = XMLInputFactory.newInstance();
+            XMLEventReader reader = inputFactory.createXMLEventReader(inputStream);
+            boolean processingChange = false;
+            while (reader.hasNext()){
+                XMLEvent nextEvent = reader.nextEvent();
+                switch (nextEvent.getEventType()){
+                    case XMLStreamConstants.START_ELEMENT:
+                        StartElement startElement = nextEvent.asStartElement();
+                        String elementName = startElement.getName().getLocalPart();
+                        if (elementName.equals("change")){
+                            // setup edit set....
+                            processingChange = true;
+                        }
+                        if (elementName.equals("field") && processingChange){
+                            StartElement fieldTag = startElement;
+                            boolean isChangeField = fieldTag.getAttributes().next().toString().contains("ChangeField");
+                            log.info("schema type: {}", fieldTag.getAttributes().next());
+                            log.info("field tag: {}", fieldTag);
+                            String fieldName = fieldTag.getAttributeByName(new QName("","name")).getValue();
+                            if (isChangeField){
+                                reader.nextEvent();
+                                StartElement firstValueTag = reader.nextEvent().asStartElement();
+                                if (firstValueTag.getName().getLocalPart().equals("oldValue")){
+                                    String oldValue = reader.getElementText();
+                                    reader.nextEvent(); reader.nextEvent();
+                                    String newValue = reader.getElementText();
+                                    log.info("old value: {} new value: {}", oldValue, newValue);
+                                } else {
+                                    String newValue = reader.getElementText();
+                                    log.info("new value: {}", newValue);
+                                }
+                            } else {
+                                reader.nextEvent(); // eat value tag
+                                reader.nextEvent();
+                                String fieldValue = reader.getElementText();
+                                log.info("value of attribute named: {} is {}", fieldName, fieldValue);
+                            }
+                        }
+                        break;
+                    case XMLStreamConstants.END_ELEMENT:
+                        EndElement endElement = nextEvent.asEndElement();
+                        if (endElement.getName().getLocalPart().equals("change")){
+                            processingChange = false;
+                        }
+                        break;
+
+                }
+            }
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        } catch (XMLStreamException e1) {
+            e1.printStackTrace();
+        }
 
     }
 
