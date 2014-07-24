@@ -175,13 +175,12 @@ public class SourceEventMapperTest {
 
     @Test
     public void testThatWeCanGetChanges(){
-        List<ProcessEvent> edits = new ArrayList<>();
+        List<ProcessEventChange> changes = new ArrayList<>();
         try {
             InputStream inputStream = editsUrl.openStream();
             XMLInputFactory inputFactory = XMLInputFactory.newInstance();
             XMLEventReader reader = inputFactory.createXMLEventReader(inputStream);
             boolean processingChange = false;
-            List<ProcessEventChange> changes = new ArrayList<>();
             String fieldName = null;
             String oldValue = null, newValue = null;
             String updater = null;
@@ -197,9 +196,8 @@ public class SourceEventMapperTest {
                             processingChange = true;
                         }
                         if (elementName.equals("field") && processingChange){
-                            StartElement fieldTag = startElement;
-                            fieldName = fieldTag.getAttributeByName(new QName("","name")).getValue();
-                            boolean isChangeField = fieldTag.getAttributes().next().toString().contains("ChangeField");
+                            fieldName = startElement.getAttributeByName(new QName("", "name")).getValue();
+                            boolean isChangeField = startElement.getAttributes().next().toString().contains("ChangeField");
 //                            log.info("schema type: {}", fieldTag.getAttributes().next());
 //                            log.info("field tag: {}", fieldTag);
                             if (isChangeField){
@@ -245,11 +243,11 @@ public class SourceEventMapperTest {
 
                 }
             }
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        } catch (XMLStreamException e1) {
+        } catch (IOException | XMLStreamException e1) {
             e1.printStackTrace();
         }
+
+        assertThat(changes.size(), is(not(0)));
 
     }
 
