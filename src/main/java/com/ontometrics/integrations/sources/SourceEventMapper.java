@@ -68,6 +68,12 @@ public class SourceEventMapper {
         return events;
     }
 
+    /**
+     * Since the primary interest is in what has been changed, we focus on getting changes
+     * often and pushing them into the appropriate channels.
+     *
+     * @return changes made since we last checked
+     */
     public List<EditSet> getLatestChanges(){
         List<ProcessEvent> latestEvents = getLatestEvents();
         return latestEvents.stream().map(e -> getChanges(e)).collect(Collectors.toList());
