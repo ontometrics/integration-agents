@@ -1,5 +1,7 @@
 package com.ontometrics.integrations.sources;
 
+import java.util.Date;
+
 /**
  * Created by rob on 7/23/14.
  * Copyright (c) ontometrics, 2014 All Rights Reserved
@@ -9,8 +11,12 @@ public class ProcessEventChange {
     private final String field;
     private final String priorValue;
     private final String currentValue;
+    private final String updater;
+    private final Date updated;
 
     public ProcessEventChange(Builder builder) {
+        updater = builder.updater;
+        updated = builder.updated;
         field = builder.field;
         priorValue = builder.priorValue;
         currentValue = builder.currentValue;
@@ -21,6 +27,18 @@ public class ProcessEventChange {
         private String field;
         private String priorValue;
         private String currentValue;
+        private String updater;
+        private Date updated;
+
+        public Builder updater(String updater){
+            this.updater = updater;
+            return this;
+            }
+
+        public Builder updated(Date updated){
+            this.updated = updated;
+            return this;
+            }
 
         public Builder field(String field){
             this.field = field;
@@ -54,8 +72,16 @@ public class ProcessEventChange {
         return currentValue;
     }
 
+    public Date getUpdated() {
+        return updated;
+    }
+
+    public String getUpdater() {
+        return updater;
+    }
+
     @Override
     public String toString() {
-        return String.format("%s changed from : %s to %s", field, priorValue, currentValue);
+        return String.format("%s changed %s from %s to %s", updater, field, priorValue, currentValue);
     }
 }
