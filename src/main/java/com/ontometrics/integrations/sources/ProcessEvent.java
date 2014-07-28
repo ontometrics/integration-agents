@@ -15,8 +15,10 @@ public class ProcessEvent {
     private final String description;
     private final Date publishDate;
     private final String link;
+    private String issueID;
 
     public ProcessEvent(Builder builder) {
+        issueID = builder.title.substring(0, builder.title.indexOf(":"));
         title = builder.title;
         description = builder.description;
         publishDate = builder.publishDate;
@@ -55,6 +57,10 @@ public class ProcessEvent {
             }
     }
 
+    public String getID() {
+        return issueID;
+    }
+
     public String getTitle() {
         return title;
     }
@@ -76,7 +82,7 @@ public class ProcessEvent {
         return "ProcessEvent{" +
                 "title='" + title + '\'' +
                 ", description='" + description + '\'' +
-                ", publishDate=" + publishDate +
+                ", publishDate=" + getPublishDate() +
                 ", link='" + link + '\'' +
                 '}';
     }

@@ -4,14 +4,17 @@ package com.ontometrics.integrations.sources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -74,17 +77,24 @@ public class SourceEventMapper {
      *
      * @return changes made since we last checked
      */
-    public List<EditSet> getLatestChanges(){
-        List<ProcessEvent> latestEvents = getLatestEvents();
-        return latestEvents.stream().map(e -> getChanges(e)).collect(Collectors.toList());
+    public List<ProcessEventChange> getLatestChanges(){
+        return getLatestEvents().stream()
+                .flatMap(e -> getChanges(e).stream())
+                .collect(Collectors.toList());
     }
 
-    private EditSet getChanges(ProcessEvent e) {
-        List<ProcessEvent> edits = new ArrayList<>();
+    private List<ProcessEventChange> getChanges(ProcessEvent e) {
+        List<ProcessEventChange> changes = new ArrayList<>();
         try {
-            InputStream inputStream = editsUrl.openStream();
+            URL changesUrl = buildEventChangesUrl(e.getID());
+            InputStream inputStream = changesUrl.openStream();
             XMLInputFactory inputFactory = XMLInputFactory.newInstance();
             XMLEventReader reader = inputFactory.createXMLEventReader(inputStream);
+            boolean processingChange = false;
+            String fieldName = null;
+            String oldValue = null, newValue = null;
+            String updater = null;
+            Date updated = null;
             while (reader.hasNext()){
                 XMLEvent nextEvent = reader.nextEvent();
                 switch (nextEvent.getEventType()){
@@ -92,23 +102,64 @@ public class SourceEventMapper {
                         StartElement startElement = nextEvent.asStartElement();
                         String elementName = startElement.getName().getLocalPart();
                         if (elementName.equals("change")){
-                            StartElement fieldTag = reader.nextEvent().asStartElement();
-                            //String fieldName = fieldTag.getAttributeByName("name").getValue();
-
-
-
-
-
-
+                            // setup edit set....
+                            processingChange = true;
                         }
+                        if (elementName.equals("field") && processingChange){
+                            fieldName = startElement.getAttributeByName(new QName("", "name")).getValue();
+                            boolean isChangeField = startElement.getAttributes().next().toString().contains("ChangeField");
+                            if (isChangeField){
+                                reader.nextEvent();
+                                StartElement firstValueTag = reader.nextEvent().asStartElement();
+                                if (firstValueTag.getName().getLocalPart().equals("oldValue")){
+                                    oldValue = reader.getElementText();
+                                    reader.nextEvent(); reader.nextEvent();
+                                    newValue = reader.getElementText();
+                                } else {
+                                    newValue = reader.getElementText();
+                                }
+                            } else {
+                                reader.nextEvent(); // eat value tag
+                                reader.nextEvent();
+                                String fieldValue = reader.getElementText();
+                                if (fieldName.equals("updaterName")){
+                                    updater = fieldValue;
+                                } else if (fieldName.equals("updated")){
+                                    updated = new Date(Long.parseLong(fieldValue));
+                                }
+                            }
+                        }
+                        break;
+                    case XMLStreamConstants.END_ELEMENT:
+                        EndElement endElement = nextEvent.asEndElement();
+                        if (endElement.getName().getLocalPart().equals("change")){
+                            ProcessEventChange change = new ProcessEventChange.Builder()
+                                    .updater(updater)
+                                    .updated(updated)
+                                    .field(fieldName)
+                                    .priorValue(oldValue)
+                                    .currentValue(newValue)
+                                    .build();
+                            log.info("change: {}", change);
+                            changes.add(change);
+                            processingChange = false;
+                        }
+                        break;
+
                 }
             }
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        } catch (XMLStreamException e1) {
+        } catch (IOException | XMLStreamException e1) {
             e1.printStackTrace();
         }
-        return new EditSet.Builder().changedOn(new Date()).editor("Bozo").change(new ProcessEventChange.Builder().field("assignee").priorValue("Noura").currentValue("Rob").build()).build();
+        return changes;
+    }
+
+    private URL buildEventChangesUrl(String issueID) throws MalformedURLException {
+        URL changesUrl = editsUrl;
+        if (editsUrl.toString().contains("{issue}")){
+            changesUrl = new URL(editsUrl.toString().replace("{issue}", issueID));
+        }
+        return changesUrl;
     }
 
     /**

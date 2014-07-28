@@ -13,17 +13,17 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.xml.namespace.QName;
-import javax.xml.stream.*;
-import javax.xml.stream.events.EndElement;
-import javax.xml.stream.events.StartElement;
-import javax.xml.stream.events.XMLEvent;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
 
 import static java.util.Calendar.JULY;
 import static org.hamcrest.CoreMatchers.*;
@@ -168,86 +168,12 @@ public class SourceEventMapperTest {
     @Test
     public void testThatWeCanGetMostRecentChanges(){
         SourceEventMapper sourceEventMapper = new SourceEventMapper(sourceUrl);
-        List<EditSet> recentChanges = sourceEventMapper.getLatestChanges();
+        sourceEventMapper.setEditsUrl(editsUrl);
+        List<ProcessEventChange> recentChanges = sourceEventMapper.getLatestChanges();
 
         log.info("recent changes: {}", recentChanges);
-    }
 
-    @Test
-    public void testThatWeCanGetChanges(){
-        List<ProcessEventChange> changes = new ArrayList<>();
-        try {
-            InputStream inputStream = editsUrl.openStream();
-            XMLInputFactory inputFactory = XMLInputFactory.newInstance();
-            XMLEventReader reader = inputFactory.createXMLEventReader(inputStream);
-            boolean processingChange = false;
-            String fieldName = null;
-            String oldValue = null, newValue = null;
-            String updater = null;
-            Date updated = null;
-            while (reader.hasNext()){
-                XMLEvent nextEvent = reader.nextEvent();
-                switch (nextEvent.getEventType()){
-                    case XMLStreamConstants.START_ELEMENT:
-                        StartElement startElement = nextEvent.asStartElement();
-                        String elementName = startElement.getName().getLocalPart();
-                        if (elementName.equals("change")){
-                            // setup edit set....
-                            processingChange = true;
-                        }
-                        if (elementName.equals("field") && processingChange){
-                            fieldName = startElement.getAttributeByName(new QName("", "name")).getValue();
-                            boolean isChangeField = startElement.getAttributes().next().toString().contains("ChangeField");
-//                            log.info("schema type: {}", fieldTag.getAttributes().next());
-//                            log.info("field tag: {}", fieldTag);
-                            if (isChangeField){
-                                reader.nextEvent();
-                                StartElement firstValueTag = reader.nextEvent().asStartElement();
-                                if (firstValueTag.getName().getLocalPart().equals("oldValue")){
-                                    oldValue = reader.getElementText();
-                                    reader.nextEvent(); reader.nextEvent();
-                                    newValue = reader.getElementText();
-//                                    log.info("old value: {} new value: {}", oldValue, newValue);
-                                } else {
-                                    newValue = reader.getElementText();
-//                                    log.info("new value: {}", newValue);
-                                }
-                            } else {
-                                reader.nextEvent(); // eat value tag
-                                reader.nextEvent();
-                                String fieldValue = reader.getElementText();
-//                                log.info("value of attribute named: {} is {}", fieldName, fieldValue);
-                                if (fieldName.equals("updaterName")){
-                                    updater = fieldValue;
-                                } else if (fieldName.equals("updated")){
-                                    updated = new Date(Long.parseLong(fieldValue));
-                                }
-                            }
-                        }
-                        break;
-                    case XMLStreamConstants.END_ELEMENT:
-                        EndElement endElement = nextEvent.asEndElement();
-                        if (endElement.getName().getLocalPart().equals("change")){
-                            ProcessEventChange change = new ProcessEventChange.Builder()
-                                    .updater(updater)
-                                    .updated(updated)
-                                    .field(fieldName)
-                                    .priorValue(oldValue)
-                                    .currentValue(newValue)
-                                    .build();
-                            log.info("change: {}", change);
-                            changes.add(change);
-                            processingChange = false;
-                        }
-                        break;
-
-                }
-            }
-        } catch (IOException | XMLStreamException e1) {
-            e1.printStackTrace();
-        }
-
-        assertThat(changes.size(), is(not(0)));
+        assertThat(recentChanges.size(), is(not(0)));
 
     }
 
